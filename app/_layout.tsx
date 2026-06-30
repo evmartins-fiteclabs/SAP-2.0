@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -9,20 +10,22 @@ import { queryClient } from "@/util/queries";
 import useUpdates from "@/hooks/useUpdates";
 import BottomContextProvider from "@/context/bottom";
 
-
 export default function RootLayout() {
-  const { updateAvailable, checkUpdate } = useUpdates();
+  const { checkUpdate } = useUpdates();
+
+  // Dispara assim que o layout monta
+  useEffect(() => {
+    checkUpdate();
+  }, []);
 
   return (
-    <GestureHandlerRootView
-      style={{ flex: 1 }}
-      onLayout={async () => await checkUpdate()}
-    >
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="auto" />
       <QueryClientProvider client={queryClient}>
         <AuthContextProvider>
           <BottomContextProvider>
-            {!updateAvailable && <Slot />}
+            {/* O Slot fica sempre aqui, sem travas */}
+            <Slot />
             <Bottom />
           </BottomContextProvider>
         </AuthContextProvider>
