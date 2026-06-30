@@ -47,9 +47,8 @@ export default function AddPost({
       queryClient.refetchQueries({ queryKey: ["posts"] });
       Alert.alert(
         "Post fixado no mural!",
-        "O conteúdo foi postado no mural e está disponível para todos."
+        "o conteudo foi postado no mural e está disponivel para todos."
       );
-      clearImage(); 
       router.navigate("(app)");
       closeHandler();
     },

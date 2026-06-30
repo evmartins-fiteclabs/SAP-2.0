@@ -1,6 +1,5 @@
 import Post, { newPost } from "@/interfaces/Post";
 import axios from "axios";
-import * as FileSystem from 'expo-file-system';
 
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL + "/posts";
 
@@ -38,39 +37,21 @@ export async function deletePost({
   });
 }
 
-export async function addPost({ 
-  postData, 
-  token, 
-}: { 
-  postData: newPost; 
-  token: string; 
-}) { 
-  let imagemBase64 = "";
+export async function addPost({
+  postData,
+  token,
+}: {
+  postData: newPost;
+  token: string;
+}) {
+  const finalPost: newPost = {
+    ...postData,
+    imagemPost: postData.imagemPost !== undefined ? postData.imagemPost : "",
+  };
 
-  // Se existir uma URI de imagem, convertemos para Base64
-  if (postData.imagemPost) {
-    try {
-      const base64Result = await FileSystem.readAsStringAsync(postData.imagemPost, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      
-      // Montamos o data URI para o componente de imagem ler facilmente depois
-      imagemBase64 = `data:image/jpeg;base64,${base64Result}`;
-    } catch (error) {
-      console.error("Erro ao converter imagem para Base64:", error);
-    }
-  }
-
-  const finalPost = { 
-    ...postData, 
-    imagemPost: imagemBase64, // Agora enviamos os bytes/string real
-  }; 
-
-  const response = await axios.post(`${BASE_URL}/`, finalPost, { 
-    headers: { Authorization: "Bearer " + token }, 
-  }); 
-
-  return response.data;
+  const response = await axios.post(`${BASE_URL}/`, finalPost, {
+    headers: { Authorization: "Bearer " + token },
+  });
 }
 
 export async function deleteMultiplePosts({
