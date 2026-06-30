@@ -15,7 +15,7 @@ import { getFuncionariosAtivos } from "@/util/requests/funcionarioHTTP";
 import Loading from "../UI/Loading";
 import { getFichasByFuncionario } from "@/util/requests/fichaHTTP";
 import { notBlank } from "@/util/validate";
-import { getSalaById } from "@/util/requests/salaHTTP";
+import { getSalaByName } from "@/util/requests/salaHTTP"; // <--- Mudado para buscar por Nome
 
 type HorarioModalProps = {
   toggleDialog: () => void;
@@ -34,6 +34,13 @@ export default function HorarioModal({
   const [recorrente, setRecorrente] = useState(false);
   const [responsavelId, setResponsavelId] = useState<string>(user?.id!);
   const [ficha, setFicha] = useState<string | null>(null);
+
+  // 1. Busca a sala usando o Nome (que veio do BottomSheet) para capturar o ID real do banco
+  const { data: sala } = useQuery({
+    queryKey: ["salas", agendamento.idSala],
+    enabled: !!agendamento.idSala && agendamento.idSala.trim().length > 0,
+    queryFn: () => getSalaByName(agendamento.idSala!, token!),
+  });
 
   const { mutate: agendar } = useMutation({
     mutationFn: createAtendimento,
@@ -56,6 +63,10 @@ export default function HorarioModal({
         ]
       );
     },
+    onError: (error) => {
+      console.log("Erro ao salvar agendamento no back-end:", error);
+      Alert.alert("Erro", "Não foi possível criar o agendamento no servidor.");
+    }
   });
 
   const { data: fichas, isLoading: loadingFichas } = useQuery({
@@ -69,17 +80,10 @@ export default function HorarioModal({
   const {
     data: funcionarios,
     isLoading: loadingFuncionarios,
-    refetch: refetchAtivos,
   } = useQuery({
     queryKey: ["funcionarios", "ativos"],
     queryFn: () => getFuncionariosAtivos(token!),
     initialData: [],
-  });
-
-  const { data: sala } = useQuery({
-    queryKey: ["salas", agendamento.idSala],
-    enabled: !!agendamento.idSala,
-    queryFn: () => getSalaById(agendamento.idSala!, token!),
   });
 
   useFocusEffect(
@@ -95,21 +99,29 @@ export default function HorarioModal({
       }
 
       BackHandler.addEventListener("hardwareBackPress", onBackPress);
-
       return () =>
         BackHandler.removeEventListener("hardwareBackPress", onBackPress);
     }, [navigation, step])
   );
 
   function agendarHandler() {
-    const atendimento: NewAgendamento = {
+    // Garante que temos o UUID real da sala encontrado pela query de busca antes de enviar
+    if (!sala || !sala.uid) {
+      Alert.alert("Erro", "Dados da sala inválidos ou não carregados.");
+      return;
+    }
+
+    const atendimento: any = {
       ...agendamento,
+      idSala: sala.uid, // <--- AQUI ESTÁ A CORREÇÃO: Passa o UID real do banco e não o Nome!
       idTerapeuta: responsavelId,
       idFuncionario: user?.id!,
+      idFicha: ficha,
     };
+
     if (notBlank(atendimento) && !!ficha) {
       agendar({
-        atendimento: { ...atendimento, idFicha: ficha },
+        atendimento: atendimento,
         token: token!,
       });
     } else {
@@ -122,10 +134,6 @@ export default function HorarioModal({
 
   function changeResponsavelHandler(id: string) {
     setResponsavelId(id);
-  }
-
-  function toggleRecorrencia() {
-    setRecorrente((p) => !p);
   }
 
   function closeDialog() {
@@ -152,7 +160,8 @@ export default function HorarioModal({
     >
       {agendamento.data && <InfoBox content={agendamento.data} label="Dia" />}
       <InfoBox content={agendamento.horario!} label="Horário" />
-      <InfoBox content={sala?.nome || ""} label="Sala" />
+      <InfoBox content={sala?.nome || agendamento.idSala || ""} label="Sala" />
+      
       {user?.cargo === "TECNICO" && (
         <Select
           onSelect={changeResponsavelHandler}
@@ -161,17 +170,12 @@ export default function HorarioModal({
           defaultValue={user}
         />
       )}
+      
       <Select
         placeholder="Selecione uma de suas fichas"
         onSelect={selectFichaHandler}
         data={fichas!}
       />
-
-      {/* <Switch
-        isEnabled={recorrente}
-        label="Recorrente?"
-        onToggle={toggleRecorrencia}
-      /> */}
     </Dialog>
   );
 }

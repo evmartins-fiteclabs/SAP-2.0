@@ -7,9 +7,18 @@ let AGENDAMENTOS: Agendamento[] = [];
 
 const BASE_URL =
   process.env.EXPO_PUBLIC_BASE_URL + "/atividades/atendimentos-individuais";
-// headers: { Authorization: "Bearer " + token },
 
 const ATV_URL = process.env.EXPO_PUBLIC_BASE_URL + "/atividades";
+
+// Força a string de data a usar barras limpas eliminando pontos ou hifens
+const normalizeToBRDate = (dateStr: string): string => {
+  let clean = dateStr.replace(/\./g, "/").replace(/-/g, "/");
+  const parts = clean.split("/");
+  if (parts[0].length === 4) {
+    return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+  }
+  return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+};
 
 export async function createAtendimento({
   atendimento,
@@ -20,8 +29,11 @@ export async function createAtendimento({
 }) {
   try {
     const { idFuncionario, idSala, idTerapeuta, idFicha } = atendimento;
+    
+    const brDate = normalizeToBRDate(atendimento.data!);
+
     const { tempoInicio, tempoFim } = createTimestamps(
-      atendimento.data!,
+      brDate,
       atendimento.horario!
     );
 
@@ -34,17 +46,14 @@ export async function createAtendimento({
       idFicha,
       idFuncionario,
     };
-    const url = `${BASE_URL}/one`;
-    console.log(url);
 
-    console.log(finalData);
-
-    const response = await axios.post(url, finalData, {
+    const response = await axios.post(`${BASE_URL}/one`, finalData, {
       headers: { Authorization: "Bearer " + token },
     });
     return response.data as Agendamento;
-  } catch (error) {
-    console.log(error);
+  } catch (error: any) {
+    console.log("Erro interno ao disparar createAtendimento:", error?.response?.data || error);
+    throw error;
   }
 }
 
@@ -58,17 +67,20 @@ export async function getAgendamentos({
   token: string;
 }) {
   try {
-    const [day, month, year] = data.split("/");
-
-    const formattedDate = `${year}-${month}-${day}`;
+    // Trata e limpa qualquer formato de data recebida (. ou /)
+    const cleanDate = data.replace(/\./g, "/").replace(/-/g, "/");
+    const [day, month, year] = cleanDate.split("/");
+    
+    const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     const url = `${ATV_URL}/many/sala-date/?uid-sala=${salaId}&date=${formattedDate}`;
 
     const response = await axios.get(url, {
       headers: { Authorization: "Bearer " + token },
     });
     return response.data as Atividade;
-  } catch (error) {
-    console.log(error);
+  } catch (error: any) {
+    console.log("Erro na rota getBySalaAndDate no Java:", error?.response?.data || error);
+    return { atendimentosGrupo: [], atendimentosIndividuais: [], encontros: [] };
   }
 }
 
@@ -83,8 +95,10 @@ export async function getAgendamentosByFuncionario(
     return response.data as Agendamento[];
   } catch (error) {
     console.log(error);
+    return [];
   }
 }
+
 export async function getAtendimentosByStatus(
   status: "PENDENTE" | "APROVADO" | "REPROVADO",
   token: string
@@ -96,34 +110,6 @@ export async function getAtendimentosByStatus(
     return response.data as Agendamento[];
   } catch (error) {
     console.log(error);
+    return [];
   }
-}
-
-export async function deleteAgendamento(agendamentoId: string) {
-  AGENDAMENTOS = AGENDAMENTOS.filter(
-    (agendamento) => agendamento.id !== agendamentoId
-  );
-}
-
-export async function getAgendamento(
-  searchedSala: string,
-  searchedData: string,
-  searchedHorario: string
-): Promise<Agendamento> {
-  return {} as Agendamento;
-}
-
-export async function removeAgendamento(
-  searchedSala: string,
-  searchedData: string,
-  searchedHorario: string
-) {
-  AGENDAMENTOS = AGENDAMENTOS.filter(
-    ({ idSala: sala, data, horario }) =>
-      !(
-        sala === searchedSala &&
-        data === searchedData &&
-        horario === searchedHorario
-      )
-  );
 }

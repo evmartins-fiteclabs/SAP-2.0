@@ -5,9 +5,10 @@ import { Colors } from "@/constants/Colors";
 import useAuth from "@/hooks/useAuth";
 import { Redirect } from "expo-router";
 import { Drawer } from "expo-router/drawer";
-import { Dimensions } from "react-native";
+import { Dimensions, LogBox } from "react-native";
 
 export default function Layout() {
+  LogBox.ignoreAllLogs();
   const { user } = useAuth();
   if (!user) {
     return <Redirect href="/login" />;
@@ -76,11 +77,12 @@ export default function Layout() {
         }}
       />
       <Drawer.Screen
-        name="[supervisionadoId]"
-        options={{
-          header: (props) => <Header {...props} />,
-        }}
-      />
+      name="[supervisionadoId]"
+      options={{
+        drawerItemStyle: { display: "none" }, 
+        header: (props) => <Header {...props} />,
+      }}
+/>
       <Drawer.Screen
         name="estatisticas"
         options={{

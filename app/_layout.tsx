@@ -8,6 +8,11 @@ import AuthContextProvider from "@/context/auth";
 import { queryClient } from "@/util/queries";
 import useUpdates from "@/hooks/useUpdates";
 import BottomContextProvider from "@/context/bottom";
+import { setupMockInterceptors } from "@/util/requests/mockSetup";
+
+// if (__DEV__) {
+//   setupMockInterceptors();
+// }
 
 export default function RootLayout() {
   const { updateAvailable, checkUpdate } = useUpdates();

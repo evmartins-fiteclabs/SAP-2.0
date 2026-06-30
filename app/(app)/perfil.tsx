@@ -79,8 +79,8 @@ export default function ProfileScreen() {
   });
 
   function showSupervisionadoHandler(funcionario: Funcionario) {
-    closeBottom();
-    router.navigate(funcionario.id);
+    // closeBottom();
+    // router.navigate(`/${funcionario.id}`);
   }
 
   function closeSupervisionadoModal() {

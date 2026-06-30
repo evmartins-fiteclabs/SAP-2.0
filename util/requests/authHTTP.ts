@@ -1,6 +1,6 @@
 import { PasswordReset } from "@/components/form/PasswordDialog";
 import Funcionario, { newFuncionario, Token } from "@/interfaces/Funcionario";
-import axios, { isAxiosError } from "axios";
+import axios, { AxiosError, isAxiosError } from "axios";
 import { Alert } from "react-native";
 
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL + "/authentication";
@@ -12,10 +12,16 @@ export type Credentials = {
 
 export async function authenticateUser(credentials: Credentials) {
   try {
+    console.log(`entrou aqui, ${`${BASE_URL}/login`} ${credentials.email, credentials.senha}`)
     const response = await axios.post(`${BASE_URL}/login`, credentials);
-
+    console.log(response.data)
     return response.data as { funcionario: Funcionario; token: Token };
   } catch (error) {
+    console.log('caiu no erro')
+    let _error = error as AxiosError
+    console.log(_error.cause, _error.code)
+    console.log(_error.toJSON())
+    
     console.log(error);
 
     if (axios.isAxiosError(error) && error.response?.status === 401) {

@@ -50,7 +50,7 @@ export default function Atendimentos() {
             height: "100%",
             justifyContent: "center",
           }}
-          onPress={() => router.navigate("horarios")}
+          onPress={() => router.navigate("/horarios")}
         />
       ),
     });

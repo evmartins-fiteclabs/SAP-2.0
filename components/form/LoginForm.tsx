@@ -15,8 +15,8 @@ type LoginFormType = {
 
 export default function LoginForm({ onShowModal }: LoginFormType) {
   const [inputs, setInputs] = useState<Credentials>({
-    email: "erick.martins@upe.br",
-    senha: "1234",
+    email: "",
+    senha: "",
   });
   const { login, user } = useAuth();
 

@@ -1,5 +1,4 @@
 import Calendar from "@/components/horario/Calendar";
-
 import MainPageLayout from "@/components/layouts/MainPageLayout";
 import useBottomSheet from "@/hooks/useBottom";
 import { router, useFocusEffect, useNavigation } from "expo-router";
@@ -16,9 +15,18 @@ import SolicitacoesModal from "@/components/horario/SolicitacoesModal";
 import SolicitacoesIcon from "@/components/horario/SolicitacoesIcon";
 import { getSalaByName } from "@/util/requests/salaHTTP";
 
+// Formata a data estritamente como DD/MM/YYYY para o componente Calendar e o createTimestamps
+const getTodayBRString = () => {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const defaultValues: NewAgendamento = {
   idSala: "",
-  data: new Date().toLocaleDateString(),
+  data: getTodayBRString(), 
   idTerapeuta: "",
   idFuncionario: "",
   statusAtividade: "PENDENTE",
@@ -33,33 +41,40 @@ export default function Horarios() {
     closeBottom,
     changeBottomContent,
     selectedValue,
-    onSelectValue,
   } = useBottomSheet();
 
   const [showModal, setShowModal] = useState(false);
-  const [agendamento, setAgendamento] = useState(defaultValues);
+  const [agendamento, setAgendamento] = useState<NewAgendamento>(defaultValues);
   const [showSolicitacoes, setShowSolicitacoes] = useState(false);
-  const { data: selectedSala } = useQuery({
-    queryKey: ["salas", agendamento.idSala],
-    enabled: !!agendamento.idSala,
-    queryFn: () => getSalaByName(agendamento.idSala, token!),
+  
+  // 1. Buscamos primeiro a Sala para obter o UID real exigido pelo Java
+  const { data: salaData } = useQuery({
+    queryKey: ["salas", selectedValue],
+    enabled: !!selectedValue && selectedValue.trim().length > 0,
+    queryFn: () => getSalaByName(selectedValue!, token!),
   });
 
+  // 2. Buscamos os agendamentos usando estritamente o UID retornado da query anterior
   const {
-    data: agendamentos,
+    data: agendamentos = { atendimentosGrupo: [], atendimentosIndividuais: [], encontros: [] },
     isLoading,
-    refetch,
+    refetch: refetchAgendamentos,
   } = useQuery({
-    queryKey: ["agendamentos", agendamento.data, agendamento.idSala],
-    enabled: !!selectedSala,
-    queryFn: () =>
-      getAgendamentos({
-        data: agendamento.data!,
-        salaId: selectedSala?.uid!,
-        token: token!,
-      }),
+    queryKey: ["agendamentos", agendamento.data, salaData?.uid],
+    enabled: !!salaData?.uid, 
+    queryFn: async () => {
+      try {
+        const res = await getAgendamentos({
+          data: agendamento.data!,
+          salaId: salaData!.uid, // Passa o UID real ("5664c14d-...")
+          token: token!,
+        });
+        return res || { atendimentosGrupo: [], atendimentosIndividuais: [], encontros: [] };
+      } catch (error) {
+        return { atendimentosGrupo: [], atendimentosIndividuais: [], encontros: [] };
+      }
+    },
   });
-  console.log(agendamento);
 
   useLayoutEffect(() => {
     changeBottomContent(<RoomModal />);
@@ -73,24 +88,20 @@ export default function Horarios() {
         ),
       });
     }
-  }, [navigation]);
+  }, [navigation, user]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener("blur", (e) => {
+    const unsubscribe = navigation.addListener("blur", () => {
       clear();
     });
-
     return unsubscribe;
   }, [navigation]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", (e) => {
-      setAgendamento(defaultValues);
-      onSelectValue(undefined);
-    });
-
-    return unsubscribe;
-  }, [navigation]);
+    if (selectedValue && selectedValue !== agendamento.idSala) {
+      setAgendamento((prev) => ({ ...prev, idSala: selectedValue }));
+    }
+  }, [selectedValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -105,40 +116,31 @@ export default function Horarios() {
       }
 
       BackHandler.addEventListener("hardwareBackPress", onBackPress);
-
       return () =>
         BackHandler.removeEventListener("hardwareBackPress", onBackPress);
     }, [isVisible, closeBottom])
   );
 
-  useEffect(() => {
-    refetch();
-  }, [agendamento.data, agendamento.idSala]);
-
-  useEffect(() => {
-    if (selectedValue) {
-      inputHandler("idSala", selectedValue);
-    }
-  }, [selectedValue]);
+  const inputHandler = useCallback((field: keyof NewAgendamento, text: string) => {
+    setAgendamento((prev) => ({ ...prev, [field]: text }));
+  }, []);
 
   function toggleModalHandler() {
     if (agendamento.idSala) {
       setShowModal((p) => !p);
+      if (typeof refetchAgendamentos === "function") {
+        refetchAgendamentos();
+      }
     } else {
       Alert.alert(
         "Erro",
         "Preencha todas as informações necessárias para continuar."
       );
     }
-    refetch();
   }
 
-  const inputHandler = useCallback((field: keyof Agendamento, text: string) => {
-    setAgendamento((prev) => ({ ...prev, [field]: text }));
-  }, []);
-
   function toggleSolicitacoesHandler() {
-    setShowSolicitacoes(!showSolicitacoes);
+    setShowSolicitacoes((prev) => !prev);
   }
 
   return (
