@@ -14,7 +14,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "env": {"EXPO_PUBLIC_BASE_URL=https://backend-sap.onrender.com/api/v1"}
+      "env": {"EXPO_PUBLIC_BASE_URL": "https://backend-sap.onrender.com/api/v1"}
     },
     "production": {
       "channel": "production"
